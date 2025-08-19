@@ -26,25 +26,27 @@ enum Difficulty {
 }
 
 model User {
-  id String @id @default(uuid())
-  name String?
-  email String @unique
-  image String?
-  role UserRole @default(USER)
-  password String 
+  id        String   @id @default(uuid())
+  name      String?
+  email     String   @unique
+  image     String?
+  role      UserRole @default(USER)
+  password  String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  problems Problem[]
+  problems    Problem[]
+  submissions Submission[]
 }
+
 model Problem {
-  id          String       @id @default(uuid())
+  id          String     @id @default(uuid())
   title       String
   description String
-  difficulty  Difficulty   // EASY, MEDIUM, HARD
+  difficulty  Difficulty // EASY, MEDIUM, HARD
   tags        String[]
-  userId      String       // Creator of the problem
-  examples    Json         // Language-specific examples
+  userId      String // Creator of the problem
+  examples    Json // Language-specific examples
   constraints String
   hints       String?
   editorial   String?
@@ -59,25 +61,45 @@ model Problem {
   // Relationships
   user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   //submissions Submission[]  Submissions for this problem
+  submissions Submission[]
   //solvedBy    ProblemSolved[] Users who have solved this problem
   //problemsPlaylists   ProblemInPlaylist[]    Playlists that include this problem
 
   @@index([difficulty])
 }
-model TestCaseResult {
-  id           String     @id @default(uuid())
-  submissionId String
-  testCase     Int
-  passed       Boolean
-  stdout       String?
-  expected     String
-  stderr       String?
-  compileOutput String?
-  status       String
-  memory       String?
-  time         String?
 
-  createdAt    DateTime   @default(now())
+model Submission {
+  id        String   @id @default(uuid())
+  userId    String
+  problemId String
+  language  String
+  code      String
+  status    String // e.g., "Accepted", "Wrong Answer", "Runtime Error"
+  createdAt DateTime @default(now())
+
+  // Relations
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  problem     Problem          @relation(fields: [problemId], references: [id], onDelete: Cascade)
+  testResults TestCaseResult[] // One submission can have many test case results
+
+  @@index([userId])
+  @@index([problemId])
+}
+
+model TestCaseResult {
+  id            String  @id @default(uuid())
+  submissionId  String
+  testCase      Int
+  passed        Boolean
+  stdout        String?
+  expected      String
+  stderr        String?
+  compileOutput String?
+  status        String
+  memory        String?
+  time          String?
+
+  createdAt DateTime @default(now())
 
   submission Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
 
