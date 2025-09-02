@@ -12,7 +12,10 @@ import problemRoutes from "./routes/problem.routes.js";
 dotenv.config()
 
 const app = express();
-app.use(cors({ origin: "http://localhost:5173", credentials: true }));
+app.use(cors({ 
+  origin: ["http://localhost:5173"], 
+  credentials: true 
+}));
 app.use(express.json());
 app.use(cookieParser());
 
@@ -31,5 +34,5 @@ app.use("/api/v1/problems", problemRoutes);
 
 
 app.listen(process.env.PORT,() => {
-    console.log("Server is Running on Port 8080");
+    console.log("Server is Running on Port " + process.env.PORT);
 })

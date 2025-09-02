@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
   output   = "../src/generated/prisma"
@@ -40,54 +34,36 @@ model User {
 }
 
 model Problem {
-  id          String     @id @default(uuid())
+  id          Int   @id @default(autoincrement())
   title       String
   description String
-  difficulty  Difficulty // EASY, MEDIUM, HARD
+  difficulty  String
   tags        String[]
-  userId      String // Creator of the problem
-  examples    Json // Language-specific examples
-  constraints String
-  hints       String?
-  editorial   String?
+  userId      String?    // 👈 make it optional
+  user        User?      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  examples    Json
+  constraints String?
 
-  testCases          Json // Universal test cases (input/output pairs)
-  codeSnippets       Json // Language-specific starter code snippets
-  referenceSolutions Json // Correct solutions for each supported language
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Relationships
-  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  //submissions Submission[]  Submissions for this problem
   submissions Submission[]
-  //solvedBy    ProblemSolved[] Users who have solved this problem
-  //problemsPlaylists   ProblemInPlaylist[]    Playlists that include this problem
 
-  @@index([difficulty])
+  isGlobal    Boolean  @default(false)   // 👈 NEW field for global problems
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 model Submission {
-  id        String   @id @default(uuid())
-  userId    String
-  problemId String
-  language  String
-  code      String
-  status    String // e.g., "Accepted", "Wrong Answer", "Runtime Error"
-  createdAt DateTime @default(now())
-
-  // Relations
+  id          String           @id @default(uuid())
+  userId      String
+  problemId   Int
   user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   problem     Problem          @relation(fields: [problemId], references: [id], onDelete: Cascade)
-  testResults TestCaseResult[] // One submission can have many test case results
+  testResults TestCaseResult[]
 
-  @@index([userId])
-  @@index([problemId])
+  createdAt DateTime @default(now())
 }
 
 model TestCaseResult {
-  id            String  @id @default(uuid())
+  id            String   @id @default(uuid())
   submissionId  String
   testCase      Int
   passed        Boolean
@@ -98,8 +74,7 @@ model TestCaseResult {
   status        String
   memory        String?
   time          String?
-
-  createdAt DateTime @default(now())
+  createdAt     DateTime @default(now())
 
   submission Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
 

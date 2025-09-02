@@ -29,13 +29,23 @@ problemRoutes.get('/', async (req, res) => {
 // GET /api/problems/:id
 problemRoutes.get('/:id', async (req, res) => {
   try {
+    const { id } = req.params;
+    console.log(`🔍 Fetching problem with ID: ${id} (type: ${typeof id})`);
+
     const problem = await prisma.problem.findUnique({
-      where: { id: req.params.id },
+      where: { id: Number(id) }, // 👈 convert string param → Int
     });
-    if (!problem) return res.status(404).json({ error: 'Not found' });
+
+    console.log(`📊 Problem found:`, problem ? 'Yes' : 'No');
+
+    if (!problem) {
+      return res.status(404).json({ error: "Problem not found" });
+    }
+
     res.json(problem);
   } catch (err) {
-    res.status(500).json({ error: 'Failed to fetch problem' });
+    console.error('❌ Error fetching problem:', err);
+    res.status(500).json({ error: "Failed to fetch problem" });
   }
 });
 
