@@ -2,7 +2,7 @@ import bcrypt from "bcryptjs";
 import {db} from "../libs/db.js"
 import { UserRole } from "../generated/prisma/index.js";
 import jwt from "jsonwebtoken";
-import { sendOtpEmail } from "../libs/mailer.js";
+import { sendOTP } from "../libs/mailer.js";
 
 export const register = async (req, res) => {
     const { name, email, password } = req.body;
@@ -83,7 +83,7 @@ export const requestSignupOtp = async (req, res) => {
         await db.emailOtp.deleteMany({ where: { email } });
         await db.emailOtp.create({ data: { email, code, expiresAt } });
 
-        await sendOtpEmail(email, code);
+        await sendOTP(email, code);
         return res.status(200).json({ message: "OTP sent" });
     } catch (error) {
         console.log("Error sending OTP", error);
