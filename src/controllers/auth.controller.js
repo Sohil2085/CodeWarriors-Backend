@@ -1,6 +1,7 @@
 import bcrypt from "bcryptjs";
 import {db} from "../libs/db.js"
-import { UserRole } from "../generated/prisma/index.js";
+// import { UserRole } from "../generated/prisma/index.js";
+import { PrismaClient, UserRole } from "@prisma/client";
 import jwt from "jsonwebtoken";
 import { sendOTP } from "../libs/mailer.js";
 
