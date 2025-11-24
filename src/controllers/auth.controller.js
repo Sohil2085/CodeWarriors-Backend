@@ -71,22 +71,43 @@ export const register = async (req, res) => {
 export const requestSignupOtp = async (req, res) => {
     try {
         const { email } = req.body;
-        if (!email) return res.status(400).json({ error: "Email is required" });
+        console.log("📧 OTP Request received for email:", email);
+        
+        if (!email) {
+            console.log("❌ No email provided");
+            return res.status(400).json({ error: "Email is required" });
+        }
 
         const existingUser = await db.user.findUnique({ where: { email } });
-        if (existingUser) return res.status(400).json({ error: "User already exists" });
+        if (existingUser) {
+            console.log("❌ User already exists:", email);
+            return res.status(400).json({ error: "User already exists" });
+        }
 
         const code = Math.floor(100000 + Math.random() * 900000).toString();
         const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+        
+        console.log("🔐 Generated OTP:", code, "for email:", email);
 
         // Upsert OTP for this email
         await db.emailOtp.deleteMany({ where: { email } });
         await db.emailOtp.create({ data: { email, code, expiresAt } });
+        console.log("💾 OTP stored in database");
 
-        await sendOTP(email, code);
-        return res.status(200).json({ message: "OTP sent" });
+        const otpResult = await sendOTP(email, code);
+        console.log("📨 sendOTP result:", otpResult);
+        
+        if (!otpResult.success) {
+            console.log("❌ Failed to send OTP:", otpResult.error);
+            await db.emailOtp.deleteMany({ where: { email } });
+            return res.status(500).json({ error: "Failed to send OTP: " + (otpResult.error || "Unknown error") });
+        }
+        
+        console.log("✅ OTP sent successfully to:", email);
+        return res.status(200).json({ message: "OTP sent successfully" });
     } catch (error) {
-        console.log("Error sending OTP", error);
+        console.log("❌ Error sending OTP:", error.message);
+        console.error("Full error:", error);
         return res.status(500).json({ error: "Failed to send OTP" });
     }
 }
