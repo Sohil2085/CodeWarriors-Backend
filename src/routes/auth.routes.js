@@ -9,6 +9,7 @@ const authRoutes = express.Router();
 
 authRoutes.post("/register",upload.single("profileImage"), register);
 authRoutes.post("/register/request-otp", requestSignupOtp);
+console.log("OTP Request Body:", req.body);
 authRoutes.post("/register/verify-otp", upload.single("profileImage"), verifySignupOtpAndRegister);
 
 authRoutes.post("/login", login);
