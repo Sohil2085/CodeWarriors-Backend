@@ -5,13 +5,22 @@ import pkg from "@prisma/client";
 const { UserRole } = pkg;
 import jwt from "jsonwebtoken";
 import { sendOTP } from "../libs/mailer.js";
+import { uploadCloudinary } from "../libs/cloudinary.js";
 
 export const register = async (req, res) => {
     const { name, email, password } = req.body;
-    const profileImage = req.file?.filename;
+    let profileImage = null;
 
     console.log(req.body)
     try {
+        if (req.file?.path) {
+            const uploadedImage = await uploadCloudinary(req.file.path);
+            if (!uploadedImage) {
+                return res.status(500).json({ error: "Failed to upload profile image" });
+            }
+            profileImage = uploadedImage.secure_url || uploadedImage.url || null;
+        }
+
         const existingUser = await db.user.findUnique({
             where: {
                 email
@@ -117,10 +126,18 @@ export const requestSignupOtp = async (req, res) => {
 export const verifySignupOtpAndRegister = async (req, res) => {
     try {
         const { email, code, username, password } = req.body;
-        const profileImage = req.file?.filename;
+        let profileImage = null;
         
         if (!email || !code || !password || !username) {
             return res.status(400).json({ error: "email, code, username and password are required" });
+        }
+
+        if (req.file?.path) {
+            const uploadedImage = await uploadCloudinary(req.file.path);
+            if (!uploadedImage) {
+                return res.status(500).json({ error: "Failed to upload profile image" });
+            }
+            profileImage = uploadedImage.secure_url || uploadedImage.url || null;
         }
 
         const otp = await db.emailOtp.findFirst({ where: { email, code, consumed: false } });
