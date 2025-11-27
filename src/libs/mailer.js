@@ -4,12 +4,12 @@ dotenv.config();
 
 // Create transporter
 const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST,
-  port: Number(process.env.SMTP_PORT),
-  secure: false, // Gmail uses STARTTLS on port 587
+  host: process.env.EMAIL_HOST,       // smtp.gmail.com
+  port: process.env.EMAIL_PORT,       // 587
+  secure: false,                      // MUST be false for port 587
   auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
   },
 });
 
