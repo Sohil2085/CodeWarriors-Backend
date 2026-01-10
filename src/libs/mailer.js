@@ -1,10 +1,8 @@
 import axios from "axios";
 
 export const sendMagicLink = async (email, token) => {
-  const link = `https://code-warriors-lyart.vercel.app/verify?token=${token}`;
-
   try {
-    await axios.post(
+    const response = await axios.post(
       "https://api.brevo.com/v3/smtp/email",
       {
         sender: {
@@ -13,26 +11,25 @@ export const sendMagicLink = async (email, token) => {
         },
         to: [{ email }],
         subject: "Verify your email",
-        htmlContent: `
-          <h2>Email Verification</h2>
-          <p>Click the button below to verify your email:</p>
-          <a href="${link}" style="padding:10px 16px;background:#4f46e5;color:white;text-decoration:none;">
-            Verify Email
-          </a>
-          <p>This link expires in 10 minutes.</p>
-        `,
+        htmlContent: `<a href="${process.env.FRONTEND_URL}/verify?token=${token}">
+                        Click to verify
+                      </a>`,
       },
       {
         headers: {
-          "api-key": process.env.BREVO_API_KEY,
+          "api-key": process.env.BREVO_API_KEY, // 🔥 REQUIRED
           "Content-Type": "application/json",
         },
       }
     );
 
+    console.log("Brevo messageId:", response.data?.messageId);
     return { success: true };
   } catch (error) {
-    console.error("Magic link email error:", error.response?.data || error.message);
+    console.error(
+      "Magic link email error:",
+      error.response?.data || error.message
+    );
     return { success: false };
   }
 };

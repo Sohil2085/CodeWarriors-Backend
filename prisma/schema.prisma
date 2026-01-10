@@ -81,23 +81,5 @@ model TestCaseResult {
   @@index([submissionId])
 }
 
-model EmailOtp {
-  id        String   @id @default(uuid())
-  email     String
-  code      String
-  expiresAt DateTime
-  consumed  Boolean  @default(false)
-  createdAt DateTime @default(now())
 
-  @@index([email])
-}
-
-model MagicLinkToken {
-  id        String   @id @default(uuid())
-  email     String
-  token     String   @unique
-  expiresAt DateTime
-  used      Boolean  @default(false)
-  createdAt DateTime @default(now())
-}
 

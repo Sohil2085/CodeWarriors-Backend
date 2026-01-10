@@ -1,31 +1,37 @@
 import express from "express";
 import dotenv from "dotenv";
+dotenv.config()
+
 import cookieParser from "cookie-parser";
 import cors from "cors";
 
 import authRoutes from "./routes/auth.routes.js";
 import userRoutes from "./routes/user.routes.js";
 import problemRoutes from "./routes/problem.routes.js";
+import { cleanupExpiredTokens } from "./cron/cleanup.js";
+
+cleanupExpiredTokens();
 
 
 
-dotenv.config()
 
 const app = express();
 app.use(
   cors({
-    origin: ["https://code-warriors-lyart.vercel.app","http://localhost:5173"],   // your frontend domain
+    origin: ["https://code-warriors-lyart.vercel.app", "http://localhost:5173"],   // your frontend domain
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
     credentials: true,
   })
 );
 app.use(express.json());
 app.use(cookieParser());
+import passport from "./libs/passport.js";
+app.use(passport.initialize());
 
 
 
-app.get("/",(req,res)=>{
-    res.send("Hello to CodeWarriors 🔥");
+app.get("/", (req, res) => {
+  res.send("Hello to CodeWarriors 🔥");
 })
 
 
@@ -36,6 +42,6 @@ app.use("/api/v1/problems", problemRoutes);
 
 
 
-app.listen(process.env.PORT,() => {
-    console.log("Server is Running on Port " + process.env.PORT);
+app.listen(process.env.PORT, () => {
+  console.log("Server is Running on Port " + process.env.PORT);
 })
