@@ -3,38 +3,34 @@ import nodemailer from "nodemailer";
 export const sendOTP = async (email, code) => {
   try {
     const transporter = nodemailer.createTransport({
-      service: "gmail",
+      host: "smtp-relay.brevo.com",
+      port: 587,
+      secure: false,
       auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS, // Gmail App Password
+        user: process.env.BREVO_EMAIL,
+        pass: process.env.BREVO_SMTP_KEY,
       },
     });
 
+    await transporter.verify(); // confirm SMTP connection
+
     const mailOptions = {
-      from: `"Your App Name" <${process.env.EMAIL_USER}>`,
+      from: `"Your App Name" <${process.env.BREVO_EMAIL}>`,
       to: email,
-      subject: "Your OTP Verification Code",
+      subject: "Your OTP Code",
       html: `
-        <div style="font-family: Arial, sans-serif;">
-          <h2>OTP Verification</h2>
-          <p>Your OTP code is:</p>
-          <h1 style="letter-spacing: 4px;">${code}</h1>
-          <p>This OTP is valid for <strong>10 minutes</strong>.</p>
-          <p>If you did not request this, please ignore this email.</p>
-        </div>
+        <h2>OTP Verification</h2>
+        <p>Your OTP is:</p>
+        <h1>${code}</h1>
+        <p>Valid for 10 minutes</p>
       `,
     };
 
     await transporter.sendMail(mailOptions);
 
-    return {
-      success: true,
-    };
+    return { success: true };
   } catch (error) {
-    console.error("❌ Email send error:", error);
-    return {
-      success: false,
-      error: error.message,
-    };
+    console.error("❌ Brevo Email Error:", error);
+    return { success: false, error: error.message };
   }
 };
