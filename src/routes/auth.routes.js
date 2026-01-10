@@ -1,22 +1,47 @@
 import express from "express";
-import { check, login, logout, register, requestSignupOtp, verifySignupOtpAndRegister } from "../controllers/auth.controller.js";
+import {
+  check,
+  login,
+  logout,
+  register,
+  requestSignupMagicLink,
+  verifySignupMagicLinkAndRegister,
+} from "../controllers/auth.controller.js";
+
 import { authMiddleware } from "../middleware/auth.middleware.js";
 import upload from "../middleware/upload.middleware.js";
 
-
 const authRoutes = express.Router();
 
+/* ========================= REGISTER (DIRECT – NO MAGIC LINK) ========================= */
+authRoutes.post(
+  "/register",
+  upload.single("profileImage"),
+  register
+);
 
-authRoutes.post("/register",upload.single("profileImage"), register);
-authRoutes.post("/register/request-otp", requestSignupOtp);
-// console.log("OTP Request Body:", req.body);
-authRoutes.post("/register/verify-otp", upload.single("profileImage"), verifySignupOtpAndRegister);
+/* ========================= MAGIC LINK SIGNUP ========================= */
 
+// Step 1: Request magic link
+authRoutes.post(
+  "/register/request-magic-link",
+  requestSignupMagicLink
+);
+
+// Step 2: Verify magic link + complete signup
+authRoutes.post(
+  "/register/verify-magic-link",
+  upload.single("profileImage"),
+  verifySignupMagicLinkAndRegister
+);
+
+/* ========================= LOGIN ========================= */
 authRoutes.post("/login", login);
 
-authRoutes.post("/logout",authMiddleware ,logout);
+/* ========================= LOGOUT ========================= */
+authRoutes.post("/logout", authMiddleware, logout);
 
-authRoutes.get("/check",authMiddleware ,check);
-
+/* ========================= CHECK AUTH ========================= */
+authRoutes.get("/check", authMiddleware, check);
 
 export default authRoutes;
