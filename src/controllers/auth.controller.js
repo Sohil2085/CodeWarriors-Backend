@@ -1,273 +1,217 @@
 import bcrypt from "bcryptjs";
-import {db} from "../libs/db.js"
-// import { UserRole } from "../generated/prisma/index.js";
-import pkg from "@prisma/client";
-const { UserRole } = pkg;
 import jwt from "jsonwebtoken";
+import pkg from "@prisma/client";
+import { db } from "../libs/db.js";
 import { sendOTP } from "../libs/mailer.js";
+import { generateOTP } from "../libs/otp.js";
 import { uploadCloudinary } from "../libs/cloudinary.js";
 
+const { UserRole } = pkg;
+
+/* ========================= REGISTER (WITHOUT OTP) ========================= */
 export const register = async (req, res) => {
-    const { name, email, password } = req.body;
+  const { name, email, password } = req.body;
+  let profileImage = null;
+
+  try {
+    if (req.file?.path) {
+      const uploadedImage = await uploadCloudinary(req.file.path);
+      profileImage = uploadedImage?.secure_url || null;
+    }
+
+    const existingUser = await db.user.findUnique({ where: { email } });
+    if (existingUser) {
+      return res.status(400).json({ error: "User Already Exists" });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const role = email === "admin@gmail.com" ? UserRole.ADMIN : UserRole.USER;
+
+    const newUser = await db.user.create({
+      data: {
+        email,
+        name,
+        password: hashedPassword,
+        role,
+        image: profileImage,
+      },
+    });
+
+    const token = jwt.sign({ id: newUser.id }, process.env.JWT_SECRET, {
+      expiresIn: "70d",
+    });
+
+    res.cookie("jwt", token, {
+      httpOnly: true,
+      sameSite: "strict",
+      secure: process.env.NODE_ENV !== "development",
+      maxAge: 1000 * 60 * 60 * 24 * 7,
+    });
+
+    res.status(201).json({
+      message: "User created successfully",
+      user: newUser,
+    });
+  } catch (error) {
+    console.error("Register error:", error);
+    res.status(500).json({ error: "Error creating user" });
+  }
+};
+
+/* ========================= REQUEST SIGNUP OTP ========================= */
+export const requestSignupOtp = async (req, res) => {
+  try {
+    const { email } = req.body;
+    console.log("📧 OTP request for:", email);
+
+    if (!email) {
+      return res.status(400).json({ error: "Email is required" });
+    }
+
+    const existingUser = await db.user.findUnique({ where: { email } });
+    if (existingUser) {
+      return res.status(400).json({ error: "User already exists" });
+    }
+
+    const code = generateOTP();
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+
+    await db.emailOtp.deleteMany({ where: { email } });
+    await db.emailOtp.create({
+      data: { email, code, expiresAt },
+    });
+
+    const otpResult = await sendOTP(email, code);
+    if (!otpResult.success) {
+      await db.emailOtp.deleteMany({ where: { email } });
+      return res.status(500).json({ error: "Failed to send OTP" });
+    }
+
+    res.status(200).json({ message: "OTP sent successfully" });
+  } catch (error) {
+    console.error("OTP request error:", error);
+    res.status(500).json({ error: "Failed to send OTP" });
+  }
+};
+
+/* ================= VERIFY OTP + REGISTER ================= */
+export const verifySignupOtpAndRegister = async (req, res) => {
+  try {
+    const { email, code, username, password } = req.body;
     let profileImage = null;
 
-    console.log(req.body)
-    try {
-        if (req.file?.path) {
-            const uploadedImage = await uploadCloudinary(req.file.path);
-            if (!uploadedImage) {
-                return res.status(500).json({ error: "Failed to upload profile image" });
-            }
-            profileImage = uploadedImage.secure_url || uploadedImage.url || null;
-        }
-
-        const existingUser = await db.user.findUnique({
-            where: {
-                email
-                }
-        })
-
-        if(existingUser){
-            return res.status(400).json({
-                error : "User Aready Exist"
-            })
-        }
-        
-        const hashedPassword = await bcrypt.hash(password, 10);
-
-        const role = email == "admin@gmail.com" ? UserRole.ADMIN : UserRole.USER;
-
-        const newUser = await db.user.create({
-            data:{
-                email,
-                name : req.body.username,
-                password:hashedPassword,
-                role: role,
-                image : profileImage || null
-            }
-        })
-        console.log(newUser)
-        const token = jwt.sign({id: newUser.id}, process.env.JWT_SECRET,{
-            expiresIn: "70d"
-        })
-
-        res.cookie("jwt", token, {
-            httpOnly: true,
-            sameSite:"strict",
-            secure:process.env.NODE_ENV !== "development",
-            maxAge:1000 * 60 * 60 * 24 * 7 //7 days
-        })
-
-        res.status(201).json({
-            message:"User created Successfully",
-            user:{
-                id:newUser.id,
-                name:newUser.name,
-                email:newUser.email,
-                role:newUser.role,
-                image:newUser.image
-            }
-        })
-
-        console.log(name)
-        
-    } catch (error) {
-        console.log("Error creating user", error);
-        res.status(500).json({
-            error: "Error creating user"
-        })
+    if (!email || !code || !username || !password) {
+      return res
+        .status(400)
+        .json({ error: "email, code, username and password required" });
     }
-}
 
-export const requestSignupOtp = async (req, res) => {
-    try {
-        const { email } = req.body;
-        console.log("📧 OTP Request received for email:", email);
-        
-        if (!email) {
-            console.log("❌ No email provided");
-            return res.status(400).json({ error: "Email is required" });
-        }
-
-        const existingUser = await db.user.findUnique({ where: { email } });
-        if (existingUser) {
-            console.log("❌ User already exists:", email);
-            return res.status(400).json({ error: "User already exists" });
-        }
-
-        const code = Math.floor(100000 + Math.random() * 900000).toString();
-        const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
-        
-        console.log("🔐 Generated OTP:", code, "for email:", email);
-
-        // Upsert OTP for this email
-        await db.emailOtp.deleteMany({ where: { email } });
-        await db.emailOtp.create({ data: { email, code, expiresAt } });
-        console.log("💾 OTP stored in database");
-
-        const otpResult = await sendOTP(email, code);
-        console.log("📨 sendOTP result:", otpResult);
-        
-        if (!otpResult.success) {
-            console.log("❌ Failed to send OTP:", otpResult.error);
-            await db.emailOtp.deleteMany({ where: { email } });
-            return res.status(500).json({ error: "Failed to send OTP: " + (otpResult.error || "Unknown error") });
-        }
-        
-        console.log("✅ OTP sent successfully to:", email);
-        return res.status(200).json({ message: "OTP sent successfully" });
-    } catch (error) {
-        console.log("❌ Error sending OTP:", error.message);
-        console.error("Full error:", error);
-        return res.status(500).json({ error: "Failed to send OTP" });
+    if (req.file?.path) {
+      const uploadedImage = await uploadCloudinary(req.file.path);
+      profileImage = uploadedImage?.secure_url || null;
     }
-}
 
-export const verifySignupOtpAndRegister = async (req, res) => {
-    try {
-        const { email, code, username, password } = req.body;
-        let profileImage = null;
-        
-        if (!email || !code || !password || !username) {
-            return res.status(400).json({ error: "email, code, username and password are required" });
-        }
+    const otp = await db.emailOtp.findFirst({
+      where: { email, code, consumed: false },
+    });
 
-        if (req.file?.path) {
-            const uploadedImage = await uploadCloudinary(req.file.path);
-            if (!uploadedImage) {
-                return res.status(500).json({ error: "Failed to upload profile image" });
-            }
-            profileImage = uploadedImage.secure_url || uploadedImage.url || null;
-        }
+    if (!otp) return res.status(400).json({ error: "Invalid OTP" });
+    if (otp.expiresAt < new Date())
+      return res.status(400).json({ error: "OTP expired" });
 
-        const otp = await db.emailOtp.findFirst({ where: { email, code, consumed: false } });
-        if (!otp) return res.status(400).json({ error: "Invalid code" });
-        if (otp.expiresAt < new Date()) return res.status(400).json({ error: "Code expired" });
-
-        const existingUser = await db.user.findUnique({ where: { email } });
-        if (existingUser) return res.status(400).json({ error: "User already exists" });
-
-        const hashedPassword = await bcrypt.hash(password, 10);
-        const role = email == "admin@gmail.com" ? UserRole.ADMIN : UserRole.USER;
-
-        const newUser = await db.user.create({
-            data: {
-                email,
-                name: username,
-                password: hashedPassword,
-                role,
-                image: profileImage || null,
-            },
-        });
-
-        await db.emailOtp.update({ where: { id: otp.id }, data: { consumed: true } });
-
-        const token = jwt.sign({ id: newUser.id }, process.env.JWT_SECRET, { expiresIn: "70d" });
-        res.cookie("jwt", token, {
-            httpOnly: true,
-            sameSite: "strict",
-            secure: process.env.NODE_ENV !== "development",
-            maxAge: 1000 * 60 * 60 * 24 * 7,
-        });
-
-        return res.status(201).json({
-            message: "User created Successfully",
-            user: { id: newUser.id, name: newUser.name, email: newUser.email, role: newUser.role, image: newUser.image },
-        });
-    } catch (error) {
-        console.log("Error verifying OTP/registering user", error);
-        return res.status(500).json({ error: "Failed to verify code or create user" });
+    const existingUser = await db.user.findUnique({ where: { email } });
+    if (existingUser) {
+      return res.status(400).json({ error: "User already exists" });
     }
-}
 
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const role = email === "admin@gmail.com" ? UserRole.ADMIN : UserRole.USER;
+
+    const newUser = await db.user.create({
+      data: {
+        email,
+        name: username,
+        password: hashedPassword,
+        role,
+        image: profileImage,
+      },
+    });
+
+    await db.emailOtp.update({
+      where: { id: otp.id },
+      data: { consumed: true },
+    });
+
+    const token = jwt.sign({ id: newUser.id }, process.env.JWT_SECRET, {
+      expiresIn: "70d",
+    });
+
+    res.cookie("jwt", token, {
+      httpOnly: true,
+      sameSite: "strict",
+      secure: process.env.NODE_ENV !== "development",
+      maxAge: 1000 * 60 * 60 * 24 * 7,
+    });
+
+    res.status(201).json({
+      message: "User created successfully",
+      user: newUser,
+    });
+  } catch (error) {
+    console.error("Verify OTP error:", error);
+    res.status(500).json({ error: "Failed to verify OTP or register" });
+  }
+};
+
+/* ========================= LOGIN ========================= */
 export const login = async (req, res) => {
-    const {email,password} = req.body;
+  const { email, password } = req.body;
 
+  try {
+    const user = await db.user.findUnique({ where: { email } });
+    if (!user) return res.status(401).json({ error: "User not found" });
 
-    try {
-        const user = await db.user.findUnique({
-            where:{
-                email
-            }
-        })
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch)
+      return res.status(401).json({ error: "Invalid credentials" });
 
-        if(!user){
-            return res.status(401).json({
-                error : "User not found"
-            })
-        }
+    const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, {
+      expiresIn: "7d",
+    });
 
-        const isMatch = await bcrypt.compare(password, user.password);
+    res.cookie("jwt", token, {
+      httpOnly: true,
+      sameSite: "strict",
+      secure: process.env.NODE_ENV !== "development",
+      maxAge: 1000 * 60 * 60 * 24 * 7,
+    });
 
-        if(!isMatch){
-            return res.status(401).json({
-                error : "Invalid credentials"
-            })
-        }
+    res.status(200).json({
+      message: "Login successful",
+      user,
+    });
+  } catch (error) {
+    console.error("Login error:", error);
+    res.status(500).json({ error: "Error logging in" });
+  }
+};
 
-        const token = jwt.sign({id:user.id}, process.env.JWT_SECRET,{
-            expiresIn : "7d"
-        })
-
-        res.cookie("jwt", token, {
-            success : true,
-            httpOnly: true,
-            sameSite:"strict",
-            secure:process.env.NODE_ENV !== "development",
-            maxAge:1000 * 60 * 60 * 24 * 7 //7 days
-        })
-
-        res.status(200).json({
-            message:"User logged in Successfully",
-            user:{
-                id:user.id,
-                name:user.name,
-                email:user.email,
-                role:user.role,
-                image:user.image
-            }
-        })
-
-    } catch (error) {
-        console.log("Error Logging in user", error);
-        res.status(500).json({
-            error: "Error Logging in user"
-        })
-    }
-}
-
+/* ========================= LOGOUT ========================= */
 export const logout = async (req, res) => {
-    try {
-        res.clearCookie("jwt",{
-            success : true,
-            httpOnly: true,
-            sameSite:"strict",
-            secure:process.env.NODE_ENV !== "development",
-        })
+  res.clearCookie("jwt", {
+    httpOnly: true,
+    sameSite: "strict",
+    secure: process.env.NODE_ENV !== "development",
+  });
 
-        res.status(200).json({
-            success : true,
-            message : "User Logout Successfully"
-        })
-    } catch (error) {
-        console.log("Error Logging out user", error);
-        res.status(500).json({
-            error: "Error Logging out user"
-        })
-    }
-}
+  res.status(200).json({ message: "Logout successful" });
+};
 
+/* ========================= CHECK AUTH ========================= */
 export const check = async (req, res) => {
-    try {
-        res.status(200).json({
-            success : true,
-            message : "User Authenticated Successfully",
-            user : req.user
-        })
-    } catch (error) {
-        console.log("Error Checking user", error);
-        res.status(500).json({
-            error: "Error Checking user"
-        })
-    }
-}
+  res.status(200).json({
+    success: true,
+    message: "User authenticated",
+    user: req.user,
+  });
+};
