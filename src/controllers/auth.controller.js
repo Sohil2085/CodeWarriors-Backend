@@ -109,6 +109,7 @@ export const googleCallback = async (req, res) => {
       sameSite: "none",
       secure: true,
       maxAge: 1000 * 60 * 60 * 24 * 7,
+      path: "/",
     });
 
     return res.redirect(process.env.FRONTEND_URL); // HOME PAGE
