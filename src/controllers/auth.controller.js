@@ -41,9 +41,10 @@ export const register = async (req, res) => {
 
     res.cookie("jwt", token, {
       httpOnly: true,
+      secure: true,
       sameSite: "none",
-      maxAge: 1000 * 60 * 60 * 24 * 7,
       path: "/",
+      maxAge: 1000 * 60 * 60 * 24 * 7,
     });
 
     return res.status(201).json({
@@ -77,9 +78,10 @@ export const login = async (req, res) => {
 
     res.cookie("jwt", token, {
       httpOnly: true,
+      secure: true,
       sameSite: "none",
-      maxAge: 1000 * 60 * 60 * 24 * 7,
       path: "/",
+      maxAge: 1000 * 60 * 60 * 24 * 7,
     });
 
     return res.status(200).json({
@@ -106,10 +108,10 @@ export const googleCallback = async (req, res) => {
     // IMPORTANT for Render + Vercel
     res.cookie("jwt", token, {
       httpOnly: true,
-      sameSite: "none",
       secure: true,
-      maxAge: 1000 * 60 * 60 * 24 * 7,
+      sameSite: "none",
       path: "/",
+      maxAge: 1000 * 60 * 60 * 24 * 7,
     });
 
     return res.redirect(process.env.FRONTEND_URL); // HOME PAGE
@@ -123,8 +125,9 @@ export const googleCallback = async (req, res) => {
 export const logout = async (req, res) => {
   res.clearCookie("jwt", {
     httpOnly: true,
-    sameSite: "none",
     secure: true,
+    sameSite: "none",
+    path: "/",
   });
 
   return res.status(200).json({ message: "Logout successful" });
