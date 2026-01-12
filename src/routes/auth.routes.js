@@ -4,6 +4,7 @@ import {
     login,
     logout,
     register,
+    googleCallback,
 } from "../controllers/auth.controller.js";
 
 import { authMiddleware } from "../middleware/auth.middleware.js";
@@ -23,21 +24,7 @@ authRoutes.get(
 authRoutes.get(
     "/google/callback",
     passport.authenticate("google", { failureRedirect: "/login", session: false }),
-    (req, res) => {
-        const token = jwt.sign({ id: req.user.id }, process.env.JWT_SECRET, {
-            expiresIn: "7d",
-        });
-
-        res.cookie("jwt", token, {
-            httpOnly: true,
-            sameSite: "strict",
-            secure: process.env.NODE_ENV !== "development",
-            maxAge: 1000 * 60 * 60 * 24 * 7,
-        });
-
-        const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
-        res.redirect(`${frontendUrl}/`);
-    }
+    googleCallback
 );
 
 /* ========================= REGISTER (DIRECT – NO MAGIC LINK) ========================= */

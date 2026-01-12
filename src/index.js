@@ -16,6 +16,7 @@ cleanupExpiredTokens();
 
 
 const app = express();
+app.set("trust proxy", 1); // 🔥 Required for Render
 app.use(
   cors({
     origin: ["https://code-warriors-lyart.vercel.app", "http://localhost:5173"],   // your frontend domain
