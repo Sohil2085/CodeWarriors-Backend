@@ -8,6 +8,7 @@ import cors from "cors";
 import authRoutes from "./routes/auth.routes.js";
 import userRoutes from "./routes/user.routes.js";
 import problemRoutes from "./routes/problem.routes.js";
+import executeRoute from "./routes/execute.routes.js";
 import { cleanupExpiredTokens } from "./cron/cleanup.js";
 
 cleanupExpiredTokens();
@@ -40,6 +41,8 @@ app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/user", userRoutes);
 app.use("/uploads", express.static("uploads"));
 app.use("/api/v1/problems", problemRoutes);
+app.use("/api/execute", executeRoute); // using exact route as provided in plan
+
 
 
 
